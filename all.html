@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Task Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    h2 {
+      margin-top: 30px;
+    }
+    .task-section {
+      background: #fff;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    input[type="text"], input[type="number"], input[type="date"] {
+      width: 60%;
+      padding: 8px;
+      margin-right: 10px;
+    }
+    button {
+      padding: 8px 12px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      padding: 6px 0;
+    }
+    .completed {
+      text-decoration: line-through;
+    }
+    .time {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .date {
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+    
+    textarea {
+      width: 90%;
+      height: 100px;
+      padding: 10px;
+      margin-top: 10px;
+      font-family: Arial, sans-serif;
+    }
+   
+
+    .note-section {
+      background: #fff;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .note {
+      margin-top: 10px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-left: 4px solid #007acc;
+    }
+    .note time {
+      display: block;
+      font-size: 0.75rem;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <h1>📋 Task Tracker</h1>
+
+  <div class="task-section">
+    <h2>Planned Tasks</h2>
+    <input type="text" id="plannedInput" placeholder="Add planned task..." />
+    <input type="date" id="plannedDate" />
+    <button onclick="addPlannedTask()">Add</button>
+    <ul id="plannedList"></ul>
+  </div>
+
+  <div class="task-section">
+    <h2>Checklist Tasks</h2>
+    <input type="text" id="checklistInput" placeholder="Add checklist item..." />
+    <input type="date" id="checklistDate" />
+    <button onclick="addChecklistTask()">Add</button>
+    <ul id="checklistList"></ul>
+  </div>
+
+  <div class="task-section">
+    <h2>Timer Tasks</h2>
+    <input type="text" id="timerInput" placeholder="Add timer task..." />
+    <input type="date" id="timerDate" />
+    <button onclick="addTimerTask()">Add</button>
+    <ul id="timerList"></ul>
+  </div>
+
+  <div class="task-section">
+    <h2>Repeat Alarm Tasks</h2>
+    <input type="text" id="alarmInput" placeholder="E.g., Drink water" />
+    <input type="number" id="alarmInterval" placeholder="Interval in mins" />
+    <button onclick="addAlarmTask()">Set Alarm</button>
+    <ul id="alarmList"></ul>
+  </div>
+
+  <audio id="alarmSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+
+  <div class="note-section">
+    <h2>📝 Notepad</h2>
+    <textarea id="noteInput" placeholder="Write your note here... (use ** for bold text)"></textarea>
+    <br>
+    <button onclick="addNote()">Add Note</button>
+    <button onclick="exportNotes()">📤 Export Notes</button>
+    <ul id="noteList"></ul>
+  </div>
+
+  <script>
+    let plannedTasks = JSON.parse(localStorage.getItem('plannedTasks')) || [];
+    let checklistTasks = JSON.parse(localStorage.getItem('checklistTasks')) || [];
+    let timerTasks = JSON.parse(localStorage.getItem('timerTasks')) || [];
+    let alarmTasks = JSON.parse(localStorage.getItem('alarmTasks')) || [];
+
+    function getTodayDate() {
+      return new Date().toISOString().split("T")[0];
+    }
+
+    function deleteTask(taskArray, index, storageKey, renderFunction) {
+      taskArray.splice(index, 1);
+      localStorage.setItem(storageKey, JSON.stringify(taskArray));
+      renderFunction();
+    }
+
+    function addPlannedTask() {
+      const input = document.getElementById('plannedInput');
+      const dateInput = document.getElementById('plannedDate');
+      const name = input.value.trim();
+      const date = dateInput.value || getTodayDate();
+      if (!name) return;
+      const time = new Date().toLocaleTimeString();
+      plannedTasks.push({ name, time, date });
+      localStorage.setItem('plannedTasks', JSON.stringify(plannedTasks));
+      input.value = '';
+      renderPlannedTasks();
+    }
+
+    function renderPlannedTasks() {
+      const plannedList = document.getElementById('plannedList');
+      plannedList.innerHTML = '';
+      plannedTasks.forEach((task, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${task.name}</strong>
+                        <div class="time">Time: ${task.time}</div>
+                        <div class="date">Date: ${task.date}</div>
+                        <button onclick="deleteTask(plannedTasks, ${index}, 'plannedTasks', renderPlannedTasks)">🗑️</button>`;
+        plannedList.appendChild(li);
+      });
+    }
+
+    function addChecklistTask() {
+      const input = document.getElementById('checklistInput');
+      const dateInput = document.getElementById('checklistDate');
+      const name = input.value.trim();
+      const date = dateInput.value || getTodayDate();
+      if (!name) return;
+      checklistTasks.push({ name, done: false, date });
+      localStorage.setItem('checklistTasks', JSON.stringify(checklistTasks));
+      input.value = '';
+      renderChecklistTasks();
+    }
+
+    function toggleChecklist(index) {
+      checklistTasks[index].done = !checklistTasks[index].done;
+      localStorage.setItem('checklistTasks', JSON.stringify(checklistTasks));
+      renderChecklistTasks();
+    }
+
+    function renderChecklistTasks() {
+      const checklistList = document.getElementById('checklistList');
+      checklistList.innerHTML = '';
+      checklistTasks.forEach((task, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleChecklist(${index})" />
+                        <span class="${task.done ? 'completed' : ''}">${task.name}</span>
+                        <div class="date">Date: ${task.date}</div>
+                        <button onclick="deleteTask(checklistTasks, ${index}, 'checklistTasks', renderChecklistTasks)">🗑️</button>`;
+        checklistList.appendChild(li);
+      });
+    }
+
+    function addTimerTask() {
+      const input = document.getElementById('timerInput');
+      const dateInput = document.getElementById('timerDate');
+      const name = input.value.trim();
+      const date = dateInput.value || getTodayDate();
+      if (!name) return;
+      timerTasks.push({ name, duration: 0, running: false, lastStartTime: null, date });
+      localStorage.setItem('timerTasks', JSON.stringify(timerTasks));
+      input.value = '';
+      renderTimerTasks();
+    }
+
+    function toggleTimer(index) {
+      const task = timerTasks[index];
+      if (task.running) {
+        const now = Date.now();
+        task.duration += Math.floor((now - task.lastStartTime) / 1000);
+        task.running = false;
+        task.lastStartTime = null;
+      } else {
+        task.running = true;
+        task.lastStartTime = Date.now();
+      }
+      localStorage.setItem('timerTasks', JSON.stringify(timerTasks));
+      renderTimerTasks();
+    }
+
+    function formatDuration(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}m ${secs}s`;
+    }
+
+    function renderTimerTasks() {
+      const timerList = document.getElementById('timerList');
+      timerList.innerHTML = '';
+      timerTasks.forEach((task, index) => {
+        let duration = task.duration || 0;
+        if (task.running) {
+          const now = Date.now();
+          duration += Math.floor((now - task.lastStartTime) / 1000);
+        }
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${task.name}</strong><br>
+                        <div class="time">Time: ${formatDuration(duration)}</div>
+                        <div class="date">Date: ${task.date}</div>
+                        <button onclick="toggleTimer(${index})">${task.running ? 'Stop' : 'Start'}</button>
+                        <button onclick="deleteTask(timerTasks, ${index}, 'timerTasks', renderTimerTasks)">🗑️</button>`;
+        timerList.appendChild(li);
+      });
+    }
+
+    function addAlarmTask() {
+      const name = document.getElementById('alarmInput').value.trim();
+      const interval = parseInt(document.getElementById('alarmInterval').value.trim());
+      if (!name || isNaN(interval)) return;
+      const task = { name, interval, nextTime: Date.now() + interval * 60000 };
+      alarmTasks.push(task);
+      localStorage.setItem('alarmTasks', JSON.stringify(alarmTasks));
+      renderAlarmTasks();
+    }
+
+    function renderAlarmTasks() {
+      const alarmList = document.getElementById('alarmList');
+      alarmList.innerHTML = '';
+      alarmTasks.forEach((task, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${task.name}</strong> (Every ${task.interval} mins)
+                        <button onclick="deleteTask(alarmTasks, ${index}, 'alarmTasks', renderAlarmTasks)">🗑️</button>
+                        <button onclick="snoozeAlarm(${index})">Snooze</button>`;
+        alarmList.appendChild(li);
+      });
+    }
+
+    function snoozeAlarm(index) {
+      alarmTasks[index].nextTime = Date.now() + 5 * 60000;
+      localStorage.setItem('alarmTasks', JSON.stringify(alarmTasks));
+    }
+
+    function checkAlarms() {
+      const now = Date.now();
+      const sound = document.getElementById('alarmSound');
+      alarmTasks.forEach(task => {
+        if (now >= task.nextTime) {
+          sound.play();
+          task.nextTime = now + task.interval * 60000;
+        }
+      });
+      localStorage.setItem('alarmTasks', JSON.stringify(alarmTasks));
+    }
+
+    let notes = JSON.parse(localStorage.getItem('notes')) || [];
+
+    function formatNoteText(text) {
+      return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    }
+
+    function addNote() {
+      const noteInput = document.getElementById('noteInput');
+      const content = noteInput.value.trim();
+      if (!content) return;
+      const now = new Date();
+      const timestamp = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+      notes.push({ content, timestamp });
+      localStorage.setItem('notes', JSON.stringify(notes));
+      noteInput.value = '';
+      renderNotes();
+    }
+
+    function renderNotes() {
+      const noteList = document.getElementById('noteList');
+      noteList.innerHTML = '';
+      notes.forEach((note, index) => {
+        const li = document.createElement('li');
+        li.classList.add('note');
+        li.innerHTML = `${formatNoteText(note.content)}<time>${note.timestamp}</time>
+                         <button onclick="deleteNote(${index})">🗑️</button>`;
+        noteList.appendChild(li);
+      });
+    }
+
+    function deleteNote(index) {
+      notes.splice(index, 1);
+      localStorage.setItem('notes', JSON.stringify(notes));
+      renderNotes();
+    }
+
+    function exportNotes() {
+  let content = notes.map(n => {
+    let formatted = n.content.replace(/\*\*(.*?)\*\*/g, (match, p1) => p1.toUpperCase());
+    return `--- Note on ${n.timestamp} ---\n${formatted}\n`;
+  }).join('\n');
+
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'notes.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+    renderNotes();
+
+    renderPlannedTasks();
+    renderChecklistTasks();
+    renderTimerTasks();
+    renderAlarmTasks();
+    setInterval(renderTimerTasks, 1000);
+    setInterval(checkAlarms, 60000);
+  </script>
+</body>
+</html>
